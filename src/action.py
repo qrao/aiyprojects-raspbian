@@ -22,6 +22,10 @@ import phue
 from rgbxy import Converter
 
 import actionbase
+import os
+import signal
+import RPi.GPIO as gpio
+import time
 
 # =============================================================================
 #
@@ -262,6 +266,63 @@ class PowerCommand(object):
 # Makers! Implement your own actions here.
 # =========================================
 
+class playYoutube(object):
+
+    def __init__(self, say, keyword):
+        self.say = say
+        self.keyword = keyword
+
+    def run(self, voice_command):
+        self.say(voice_command)
+
+        track = voice_command.replace(self.keyword, '', 1)
+
+        p = subprocess.Popen(os.getcwd()+"/env/bin/youtube-dl \"gvsearch1:" + track + "\" -f \"140/m4a/bestaudio\" -o - | cvlc -",
+                             stdin=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+        
+        gpio.setmode(gpio.BCM)
+        gpio.setup(23, gpio.IN)
+
+        while True:
+            if gpio.input(23) == gpio.LOW:
+                os.killpg(os.getpgid(p.pid), signal.SIGTERM);
+                self.say("stopped playing " + track)
+                break
+            time.sleep(0.2)
+
+class playRadio(object):
+    def __init__(self, say, keyword):
+        self.say = say
+        self.keyword = keyword
+
+    def run(self, voice_command):
+
+        self.say(voice_command)
+
+        # Search for radio stations here: http://www.radiosure.com/stations/
+
+        if voice_command == 'play radio WNYC' or voice_command == 'play radio 1' :
+            station = "http://www.wnyc.org/stream/wnyc-fm939/aac.pls"
+        elif voice_command == 'play radio the shark' or voice_command == 'play radio 2' :
+            station = "http://playerservices.streamtheworld.com/pls/WWSKFMAAC.pls"
+        elif voice_command == 'play radio k 98.3' or voice_command == 'play radio 3' :
+            station = "http://playerservices.streamtheworld.com/pls/WKJYFM.pls"
+        else:
+            station = "http://playerservices.streamtheworld.com/pls/WKJYFM.pls"
+
+        p = subprocess.Popen(["/usr/bin/cvlc",station],stdin=subprocess.PIPE,stdout=subprocess.PIPE)
+        p.poll()
+
+        gpio.setmode(gpio.BCM)
+        gpio.setup(23, gpio.IN)
+
+        while True:
+            if gpio.input(23) == gpio.LOW:
+#                logging.info("stopping radio")
+                p.kill()
+                self.say("stopped the radio")
+                break
+            time.sleep(0.1)
 
 def make_actor(say):
     """Create an actor to carry out the user's commands."""
@@ -283,6 +344,11 @@ def make_actor(say):
     # =========================================
     # Makers! Add your own voice commands here.
     # =========================================
+    actor.add_keyword(_('play radio'), playRadio(say,_('play radio')))
+    actor.add_keyword(_('play YouTube'), playYoutube(say,_('play YouTube')))
+    
+    actor.add_keyword(_('system reboot'),SpeakShellCommandOutput(say, "sudo reboot",_("Reboot Failed")))
+    actor.add_keyword(_('system shutdown'),SpeakShellCommandOutput(say,"sudo shutdown -h now",_("Shutdown Failed")))
 
     actor.add_keyword(_('raspberry power off'), PowerCommand(say, 'shutdown'))
     actor.add_keyword(_('raspberry reboot'), PowerCommand(say, 'reboot'))
