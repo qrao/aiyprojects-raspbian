@@ -95,30 +95,40 @@ class Recorder(threading.Thread):
             self._processors.remove(processor)
         except ValueError:
             logger.warn("processor was not found in the list")
+            
+    def stop_recorder(self):
+        if self._arecord:
+            self._arecord.kill()
+        self._arecord = None
+        return
 
+    def start_recorder(self):
+        self._arecord = subprocess.Popen(self._cmd, stdout=subprocess.PIPE)
+        logger.info("started recorder")
+        return
+                                                
     def run(self):
         """Reads data from arecord and passes to processors."""
-
-        self._arecord = subprocess.Popen(self._cmd, stdout=subprocess.PIPE)
-        logger.info("started recording")
 
         # Check for race-condition when __exit__ is called at the same time as
         # the process is started by the background thread
         if self._closed:
-            self._arecord.kill()
+            if self._arecord:
+                self._arecord.kill()
             return
 
         this_chunk = b''
 
         while True:
-            input_data = self._arecord.stdout.read(self._chunk_bytes)
-            if not input_data:
-                break
+            if self._arecord:
+                input_data = self._arecord.stdout.read(self._chunk_bytes)
+                if not input_data:
+                    break
 
-            this_chunk += input_data
-            if len(this_chunk) >= self._chunk_bytes:
-                self._handle_chunk(this_chunk[:self._chunk_bytes])
-                this_chunk = this_chunk[self._chunk_bytes:]
+                this_chunk += input_data
+                if len(this_chunk) >= self._chunk_bytes:
+                    self._handle_chunk(this_chunk[:self._chunk_bytes])
+                    this_chunk = this_chunk[self._chunk_bytes:]
 
         if not self._closed:
             logger.error('Microphone recorder died unexpectedly, aborting...')

@@ -352,6 +352,7 @@ class SyncMicRecognizer(object):
             # Duplicate trigger (eg multiple button presses)
             return
 
+        self.recorder.start_recorder();
         self.status_ui.status('listening')
         self.recognizer.reset()
         self.recorder.add_processor(self.recognizer)
@@ -359,6 +360,7 @@ class SyncMicRecognizer(object):
         self.recognizer_event.set()
 
     def endpointer_cb(self):
+        self.recorder.stop_recorder();
         self.recorder.remove_processor(self.recognizer)
         self.status_ui.status('thinking')
 
