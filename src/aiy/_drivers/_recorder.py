@@ -17,6 +17,7 @@
 import logging
 import os
 import subprocess
+import time
 import threading
 import wave
 
@@ -129,6 +130,8 @@ class Recorder(threading.Thread):
                 if len(this_chunk) >= self._chunk_bytes:
                     self._handle_chunk(this_chunk[:self._chunk_bytes])
                     this_chunk = this_chunk[self._chunk_bytes:]
+            else:
+                time.sleep(0.5)
 
         if not self._closed:
             logger.error('Microphone recorder died unexpectedly, aborting...')
