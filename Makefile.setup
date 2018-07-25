@@ -1,0 +1,4 @@
+all: setup
+
+setup:
+	scripts/install-deps.sh
